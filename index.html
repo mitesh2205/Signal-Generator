@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Enhanced Stock Market Signal Generator</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@1.2.1/dist/chartjs-plugin-zoom.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 20px;
+            background-color: #f8f9fa;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .card {
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 400px;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+        .indicator-container {
+            position: relative;
+            height: 200px;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+        .buy-signal {
+            background-color: rgba(40, 167, 69, 0.2);
+        }
+
+        .sell-signal {
+            background-color: rgba(220, 53, 69, 0.2);
+        }
+
+        #loadingSpinner {
+            display: none;
+        }
+
+        .signal-badge {
+            font-size: 1.2rem;
+            padding: 8px 16px;
+        }
+
+        .signal-details {
+            margin-top: 20px;
+        }
+
+        .watchlist-item {
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .watchlist-item:hover {
+            background-color: #f0f0f0;
+        }
+
+        .watchlist-item.active {
+            background-color: #e9ecef;
+        }
+
+        .weight-slider {
+            width: 100%;
+        }
+
+        .weight-value {
+            width: 40px;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .export-btn {
+            margin-right: 10px;
+        }
+
+        .nav-tabs .nav-link {
+            color: #495057;
+        }
+
+        .nav-tabs .nav-link.active {
+            font-weight: bold;
+            color: #0d6efd;
+        }
+
+        .watchlist-signal {
+            width: 70px;
+            text-align: center;
+        }
+
+        /* Dark mode styles */
+        .dark-mode {
+            background-color: #121212;
+            color: #e0e0e0;
+        }
+
+        .dark-mode .card {
+            background-color: #1e1e1e;
+            color: #e0e0e0;
+        }
+
+        .dark-mode .card-header {
+            background-color: #333;
+            color: #e0e0e0;
+        }
+
+        .dark-mode .list-group-item {
+            background-color: #1e1e1e;
+            color: #e0e0e0;
+        }
+
+        .dark-mode .table-striped tbody tr:nth-of-type(odd) {
+            background-color: #2e2e2e;
+        }
+
+        .dark-mode th,
+        .dark-mode td {
+            color: #e0e0e0;
+        }
+
+        .dark-mode .nav-tabs .nav-link {
+            color: #cfcfcf;
+        }
+
+        .dark-mode .nav-tabs .nav-link.active {
+            color: #fff;
+            font-weight: bold;
+        }
+
+        .dark-mode .alert {
+            background-color: #333;
+            color: #fff;
+        }
+
+
+        /* Enhanced Responsiveness */
+        @media only screen and (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            .chart-container {
+                height: 300px;
+            }
+
+            .indicator-container {
+                height: 150px;
+            }
+
+            .card {
+                margin-bottom: 15px;
+            }
+
+            .nav-tabs .nav-link {
+                font-size: 0.9rem;
+                padding: 0.5rem;
+            }
+
+            .signal-badge {
+                font-size: 1rem;
+                padding: 6px 12px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Dark Mode Toggle Button -->
+        <div class="d-flex justify-content-end mb-3">
+            <button id="darkModeToggle" class="btn btn-outline-secondary">
+                <i class="bi bi-moon"></i> Dark Mode
+            </button>
+        </div>
+
+        <h1 class="text-center my-4">Enhanced Stock Market Signal Generator</h1>
+        <p class="text-center lead">Generate buy/sell signals based on multiple technical indicators</p>
+
+        <div class="row">
+            <!-- Left Column - Watchlist, Controls, and Robinhood Account -->
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Stock Selection</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="stockSymbol" class="form-label">Stock Symbol</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="stockSymbol"
+                                    placeholder="Enter stock symbol (e.g., AAPL)" value="AAPL" />
+                                <button class="btn btn-outline-secondary" type="button" id="addToWatchlistBtn"
+                                    title="Add to Watchlist">
+                                    <i class="bi bi-plus-lg"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="timeRange" class="form-label">Time Range</label>
+                            <select class="form-select" id="timeRange">
+                                <option value="1m">1 Month</option>
+                                <option value="3m">3 Months</option>
+                                <option value="6m">6 Months</option>
+                                <option value="1y" selected>1 Year</option>
+                                <option value="2y">2 Years</option>
+                                <option value="5y">5 Years</option>
+                            </select>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-primary" id="analyzeBtn">Analyze Stock</button>
+                        </div>
+                        <div class="text-center mt-3">
+                            <div id="loadingSpinner" class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Watchlist</h5>
+                        <button class="btn btn-sm btn-outline-light" id="refreshWatchlistBtn" title="Refresh Watchlist">
+                            <i class="bi bi-arrow-clockwise"></i>
+                        </button>
+                    </div>
+                    <div class="card-body p-0">
+                        <ul class="list-group list-group-flush" id="watchlistItems">
+                            <!-- Watchlist items will be inserted here -->
+                            <li class="list-group-item text-center text-muted">
+                                Add stocks to your watchlist
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header bg-secondary text-white">
+                        <h5 class="mb-0">Export Options</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-outline-primary" id="exportChartBtn" disabled>
+                                <i class="bi bi-file-image"></i> Export Chart as PNG
+                            </button>
+                            <button class="btn btn-outline-primary" id="exportDataBtn" disabled>
+                                <i class="bi bi-file-spreadsheet"></i> Export Data as CSV
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- New Robinhood Account Card -->
+                <!-- <div class="card mt-3">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0">Robinhood Account</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="rhUsername" class="form-label">Username</label>
+                            <input type="text" class="form-control" id="rhUsername"
+                                placeholder="Enter your Robinhood username" />
+                        </div>
+                        <div class="mb-3">
+                            <label for="rhPassword" class="form-label">Password</label>
+                            <input type="password" class="form-control" id="rhPassword"
+                                placeholder="Enter your password" />
+                        </div>
+                        <div class="d-grid">
+                            <button class="btn btn-info text-white" id="rhLoginBtn">Login to Robinhood</button>
+                        </div>
+                        <div id="rhStatus" class="mt-2 text-center"></div>
+                    </div>
+                </div> -->
+            </div>
+
+            <!-- Right Column - Analysis Results -->
+            <div class="col-md-8">
+                <div id="resultSection" style="display: none;">
+                    <div class="card">
+                        <div class="card-header bg-dark text-white">
+                            <h5 class="mb-0" id="stockTitle">Stock Analysis</h5>
+                        </div>
+                        <div class="card-body">
+                            <!-- New error message element -->
+                            <div id="errorMessage" class="alert alert-danger text-center mb-3" style="display: none;">
+                            </div>
+                            <div id="signalAlert" class="alert text-center mb-4">
+                                <h3 class="mb-0">Current Signal: <span id="currentSignal"
+                                        class="badge signal-badge">-</span></h3>
+                            </div>
+
+                            <ul class="nav nav-tabs mb-3" id="chartTabs" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active" id="price-tab" data-bs-toggle="tab"
+                                        data-bs-target="#price-tab-pane" type="button" role="tab"
+                                        aria-controls="price-tab-pane" aria-selected="true">Price Chart</button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="indicators-tab" data-bs-toggle="tab"
+                                        data-bs-target="#indicators-tab-pane" type="button" role="tab"
+                                        aria-controls="indicators-tab-pane" aria-selected="false">Indicators</button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="settings-tab" data-bs-toggle="tab"
+                                        data-bs-target="#settings-tab-pane" type="button" role="tab"
+                                        aria-controls="settings-tab-pane" aria-selected="false">Signal Settings</button>
+                                </li>
+                            </ul>
+
+                            <div class="tab-content" id="chartTabsContent">
+                                <!-- Price Chart Tab -->
+                                <div class="tab-pane fade show active" id="price-tab-pane" role="tabpanel"
+                                    aria-labelledby="price-tab" tabindex="0">
+                                    <div class="chart-container">
+                                        <canvas id="priceChart"></canvas>
+                                    </div>
+                                </div>
+
+                                <!-- Indicators Tab -->
+                                <div class="tab-pane fade" id="indicators-tab-pane" role="tabpanel"
+                                    aria-labelledby="indicators-tab" tabindex="0">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="indicator-container">
+                                                <canvas id="rsiChart"></canvas>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="indicator-container">
+                                                <canvas id="macdChart"></canvas>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="indicator-container">
+                                                <canvas id="stochChart"></canvas>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="indicator-container">
+                                                <canvas id="adxChart"></canvas>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Signal Settings Tab -->
+                                <div class="tab-pane fade" id="settings-tab-pane" role="tabpanel"
+                                    aria-labelledby="settings-tab" tabindex="0">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h5 class="mb-0">Indicator Weights</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <p class="text-muted">Adjust the weight of each indicator in the combined
+                                                signal calculation.</p>
+
+                                            <div class="mb-3">
+                                                <label for="maWeight" class="form-label">Moving Average
+                                                    Crossover</label>
+                                                <div class="d-flex align-items-center">
+                                                    <input type="range" class="form-range weight-slider" min="0"
+                                                        max="100" step="5" value="25" id="maWeight" />
+                                                    <span class="weight-value ms-2" id="maWeightValue">25%</span>
+                                                </div>
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <label for="rsiWeight" class="form-label">RSI</label>
+                                                <div class="d-flex align-items-center">
+                                                    <input type="range" class="form-range weight-slider" min="0"
+                                                        max="100" step="5" value="25" id="rsiWeight" />
+                                                    <span class="weight-value ms-2" id="rsiWeightValue">25%</span>
+                                                </div>
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <label for="macdWeight" class="form-label">MACD</label>
+                                                <div class="d-flex align-items-center">
+                                                    <input type="range" class="form-range weight-slider" min="0"
+                                                        max="100" step="5" value="25" id="macdWeight" />
+                                                    <span class="weight-value ms-2" id="macdWeightValue">25%</span>
+                                                </div>
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <label for="bbWeight" class="form-label">Bollinger Bands</label>
+                                                <div class="d-flex align-items-center">
+                                                    <input type="range" class="form-range weight-slider" min="0"
+                                                        max="100" step="5" value="25" id="bbWeight" />
+                                                    <span class="weight-value ms-2" id="bbWeightValue">25%</span>
+                                                </div>
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <label for="stochWeight" class="form-label">Stochastic
+                                                    Oscillator</label>
+                                                <div class="d-flex align-items-center">
+                                                    <input type="range" class="form-range weight-slider" min="0"
+                                                        max="100" step="5" value="0" id="stochWeight" />
+                                                    <span class="weight-value ms-2" id="stochWeightValue">0%</span>
+                                                </div>
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <label for="adxWeight" class="form-label">ADX</label>
+                                                <div class="d-flex align-items-center">
+                                                    <input type="range" class="form-range weight-slider" min="0"
+                                                        max="100" step="5" value="0" id="adxWeight" />
+                                                    <span class="weight-value ms-2" id="adxWeightValue">0%</span>
+                                                </div>
+                                            </div>
+
+                                            <div class="alert alert-info">
+                                                <div class="d-flex align-items-center">
+                                                    <i class="bi bi-info-circle me-2"></i>
+                                                    <div>
+                                                        <strong>Total Weight: <span
+                                                                id="totalWeight">100</span>%</strong>
+                                                        <div id="weightWarning" class="text-danger"
+                                                            style="display: none;">
+                                                            Total weight should equal 100%
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="d-grid">
+                                                <button class="btn btn-primary" id="applyWeightsBtn">Apply Weights &
+                                                    Recalculate</button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- New Indicator Parameters Card -->
+                                    <div class="card mt-3">
+                                        <div class="card-header">
+                                            <h5 class="mb-0">Indicator Parameters</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="mb-3">
+                                                <label for="sma50Period" class="form-label">SMA 50 Period</label>
+                                                <input type="number" class="form-control" id="sma50Period" value="50" />
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="sma200Period" class="form-label">SMA 200 Period</label>
+                                                <input type="number" class="form-control" id="sma200Period"
+                                                    value="200" />
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="rsiPeriod" class="form-label">RSI Period</label>
+                                                <input type="number" class="form-control" id="rsiPeriod" value="14" />
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="macdFastPeriod" class="form-label">MACD Fast Period</label>
+                                                <input type="number" class="form-control" id="macdFastPeriod"
+                                                    value="12" />
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="macdSlowPeriod" class="form-label">MACD Slow Period</label>
+                                                <input type="number" class="form-control" id="macdSlowPeriod"
+                                                    value="26" />
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="macdSignalPeriod" class="form-label">MACD Signal
+                                                    Period</label>
+                                                <input type="number" class="form-control" id="macdSignalPeriod"
+                                                    value="9" />
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="bbPeriod" class="form-label">Bollinger Bands Period</label>
+                                                <input type="number" class="form-control" id="bbPeriod" value="20" />
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="bbStdDev" class="form-label">Bollinger Bands Std Dev</label>
+                                                <input type="number" step="0.1" class="form-control" id="bbStdDev"
+                                                    value="2" />
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="stochKPeriod" class="form-label">Stochastic %K
+                                                    Period</label>
+                                                <input type="number" class="form-control" id="stochKPeriod"
+                                                    value="14" />
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="stochDPeriod" class="form-label">Stochastic %D
+                                                    Period</label>
+                                                <input type="number" class="form-control" id="stochDPeriod" value="3" />
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="adxPeriod" class="form-label">ADX Period</label>
+                                                <input type="number" class="form-control" id="adxPeriod" value="14" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="signal-details">
+                                <h5>Signal Details</h5>
+                                <div class="table-responsive">
+                                    <table class="table table-striped table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Indicator</th>
+                                                <th>Value</th>
+                                                <th>Signal</th>
+                                                <th>Weight</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="signalDetails">
+                                            <!-- Signal details will be inserted here -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- New Risk Management Recommendations Card -->
+                            <div id="riskManagement" class="card mt-3" style="display: none;">
+                                <div class="card-header">
+                                    <h5 class="mb-0">Risk Management Recommendations</h5>
+                                </div>
+                                <div class="card-body">
+                                    <p>Stop Loss: <span id="stopLoss"></span></p>
+                                    <p>Take Profit: <span id="takeProfit"></span></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap Toast Container for Signal Alerts -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div id="signalToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header">
+                <strong class="me-auto">Signal Alert</strong>
+                <small>Just now</small>
+                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+            <div class="toast-body">
+                Signal changed!
+            </div>
+        </div>
+    </div>
+
+    <!-- Inline script for Dark Mode Toggle -->
+    <script>
+        const darkModeToggle = document.getElementById("darkModeToggle");
+        const currentTheme = localStorage.getItem("theme");
+
+        // If a theme is saved in localStorage, apply it
+        if (currentTheme === "dark") {
+            document.body.classList.add("dark-mode");
+            darkModeToggle.innerHTML = '<i class="bi bi-sun"></i> Light Mode';
+        }
+
+        darkModeToggle.addEventListener("click", () => {
+            document.body.classList.toggle("dark-mode");
+            if (document.body.classList.contains("dark-mode")) {
+                darkModeToggle.innerHTML = '<i class="bi bi-sun"></i> Light Mode';
+                localStorage.setItem("theme", "dark");
+            } else {
+                darkModeToggle.innerHTML = '<i class="bi bi-moon"></i> Dark Mode';
+                localStorage.setItem("theme", "light");
+            }
+        });
+    </script>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Load Robinhood script if needed (ensure it doesn't rely on app.js variables) -->
+    <script src="robinhood.js"></script>
+    <!-- Load main app logic as a module -->
+    <script type="module" src="app.js"></script>
+    <!-- Chart.js zoom plugin (loaded globally, assumed available to chartVisualizer.js) -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@1.2.1/dist/chartjs-plugin-zoom.min.js"></script>
+
+</body>
+
+</html>
