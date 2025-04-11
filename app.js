@@ -1445,20 +1445,21 @@ const app = {
     // --- UI Updates End ---
 
     try {
-      // 1. Fetch Data
-      const prices = await stockAPI.fetchStockData(symbol, timeRange); // Use imported module
+      // Fetch data with full name and current price
+      const { prices, fullName, currentPrice } = await stockAPI.fetchStockData(
+        symbol,
+        timeRange,
+      );
 
-      // 2. Get Parameters & Weights from UI
-      const indicatorParams = getIndicatorParameters(); // Use imported function
-      const weights = getIndicatorWeights(); // Use imported function
+      const indicatorParams = getIndicatorParameters();
+      const weights = getIndicatorWeights();
 
-      // 3. Validate Data Length
       const longestPeriod = Math.max(
         indicatorParams.sma200Period,
         indicatorParams.macdSlowPeriod + indicatorParams.macdSignalPeriod - 2,
         indicatorParams.bbPeriod,
         indicatorParams.stochKPeriod + indicatorParams.stochDPeriod - 1,
-        indicatorParams.adxPeriod * 2 - 1, // ADX needs roughly 2*period - 1
+        indicatorParams.adxPeriod * 2 - 1,
       );
       if (!prices || prices.length < longestPeriod) {
         throw new Error(
@@ -1468,41 +1469,31 @@ const app = {
         );
       }
 
-      // 4. Generate Signals
-      // Pass indicatorParams to generateSignals if it accepts them
-      const signals = technicalIndicators.generateSignals(
-        // Use imported module
-        prices,
-        weights,
-        indicatorParams,
-      );
+      const signals = technicalIndicators.generateSignals(prices, weights);
 
-      // 5. Update UI Title
-      if (stockTitle) stockTitle.textContent = `${symbol} Stock Analysis`;
+      // Update stock title with full name, symbol, and current price
+      if (stockTitle) {
+        stockTitle.textContent = `${fullName} (${symbol}) - $${currentPrice.toFixed(
+          2,
+        )}`;
+      }
 
-      // 6. Create/Update Charts
-      chartVisualizer.createPriceChart(prices, signals); // Use imported module
+      chartVisualizer.createPriceChart(prices, signals);
       chartVisualizer.createRSIChart(prices, signals);
       chartVisualizer.createMACDChart(prices, signals);
       chartVisualizer.createStochasticChart(prices, signals);
       chartVisualizer.createADXChart(prices, signals);
 
-      // 7. Update Signal Details Table
       chartVisualizer.updateSignalDetails(prices, signals, weights);
-
-      // 8. Update Current Signal Display & State (pass appState for toast)
       const currentSignal = chartVisualizer.updateCurrentSignal(
         signals,
-        this.appState, // Pass shared state
+        this.appState,
       );
 
-      // 9. Update Watchlist (if symbol exists)
-      watchlistManager.updateSignal(symbol, currentSignal); // Use imported module
+      watchlistManager.updateSignal(symbol, currentSignal);
 
-      // 10. Calculate and Display Risk Management
-      const atr = computeATR(prices, indicatorParams.adxPeriod); // Use imported function
-      const currentPrice = prices[prices.length - 1].close;
-      const riskRewardRatio = 2; // Example - consider making configurable
+      const atr = computeATR(prices, indicatorParams.adxPeriod);
+      const riskRewardRatio = 2;
 
       let stopLoss = null,
         takeProfit = null;
@@ -1526,7 +1517,6 @@ const app = {
         }
       }
 
-      // 11. Show Results Section
       if (resultSection) resultSection.style.display = "block";
     } catch (error) {
       console.error("Analysis Error:", error);

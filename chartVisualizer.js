@@ -109,7 +109,10 @@ export const chartVisualizer = {
         plugins: {
           title: {
             display: true,
-            text: "Stock Price with Buy/Sell Signals",
+            text:
+              document.getElementById("stockTitle").textContent +
+              " - Last Price: " +
+              prices[prices.length - 1].close.toFixed(2),
           },
           tooltip: {
             callbacks: {
